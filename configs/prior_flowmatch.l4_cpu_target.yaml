@@ -1,0 +1,44 @@
+audio:
+  sr: 24000
+  codec: "encodec_24k"
+  max_seconds: 12
+  chunk_seconds: 2.0
+data:
+  name: "mythicinfinity/libritts_r"
+  subset: "clean"
+  split: "train.clean.100"
+  streaming: true
+  text_field: "text_normalized"
+  speaker_field: "speaker_id"
+latents:
+  dir: "data/latents_clean_24k"
+  index_json: "data/latents_index.json"
+model:
+  type: "prior_fm_dit"
+  hidden_size: 384
+  num_layers: 10
+  num_heads: 6
+  mlp_ratio: 4
+  cond_dim: 512
+  use_gradient_checkpointing: true
+  dropout: 0.0
+train:
+  optimizer: "adamw_8bit"
+  lr: 2.0e-4
+  betas: [0.9, 0.95]
+  weight_decay: 0.01
+  scheduler: "cosine"
+  warmup_steps: 4000
+  ema: { enabled: true, decay: 0.999 }
+  precision: "bf16"
+  grad_clip: 1.0
+  microbatch_seconds: 10
+  grad_accum_steps: 12
+  max_frames: 900
+  steps: 400
+  log_interval: 20
+  ckpt_interval: 200
+  seed: 1337
+runtime:
+  compile: false
+  attn_backend: "sdp"
