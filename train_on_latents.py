@@ -44,7 +44,13 @@ def main(cfg):
     else:
         dl = DataLoader(ds, batch_size=1, shuffle=True)
 
-    prior = PriorFM(h=cfg['model']['hidden_size'], depth=cfg['model']['num_layers'], heads=cfg['model']['num_heads'], cond_dim=cfg['model']['cond_dim']).to(device)
+    prior = PriorFM(
+              in_dim=cfg['model']['in_dim'],
+              h=cfg['model']['hidden_size'],
+              depth=cfg['model']['num_layers'],
+              heads=cfg['model']['num_heads'],
+              cond_dim=cfg['model']['cond_dim']  # This will now correctly pass 768
+          ).to(device)
     try:
         from bitsandbytes.optim import AdamW8bit as AdamW
     except Exception:
@@ -59,9 +65,9 @@ def main(cfg):
     prior.train(); steps = cfg['train']['steps']; log_int = cfg['train']['log_interval']; ckpt_int = cfg['train']['ckpt_interval']
 
     def step_batch(b, step):
-        z = b['z'].to(device).unsqueeze(0)
-        text_h = text_encode(b['text_ids'].unsqueeze(0).to(device)).to(device)
-        spk = speaker_embed(b['wav'].to(device)); pro = prosody_embed(b['wav'].to(device))
+        z = b['z'].to(device)
+        text_h = text_encode(b['text_ids'].to(device)).to(device)
+        spk = speaker_embed(b['wav'].to(device)).to(device); pro = prosody_embed(b['wav'].to(device)).to(device)
         cond = pack_condition(text_h, spk, pro)
         with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=(cfg['train']['precision']=='bf16')):
             loss = flow_matching_loss(prior, z, cond)
