@@ -11,16 +11,27 @@ def iter_hf(name, subset, split, sr, streaming, min_sec, max_sec, text_field, sp
     if not streaming:
         ds = ds.cast_column('audio', Audio(sampling_rate=sr))
     for ex in ds:
-        a = ex['audio']; wav = torch.tensor(a['array']).float()
-        if wav.ndim>1: wav = wav.mean(-1)
-        dur = wav.numel()/sr
-        if dur<min_sec or dur>max_sec: continue
-        yield {'wav': wav.unsqueeze(0), 'speaker': str(ex.get(speaker_field,'unk')), 'text': ex.get(text_field) or ex.get('text') or ex.get('text_original') or ''}
+        a = ex['audio']
+        wav = torch.tensor(a['array']).float()
+        if wav.ndim > 1:
+            wav = wav.mean(-1)
+        dur = wav.numel() / sr
+        if dur < min_sec or dur > max_sec:
+            continue
+        # Add both batch and channel dimensions here
+        yield {'wav': wav.unsqueeze(0).unsqueeze(0), 'speaker': str(ex.get(speaker_field,'unk')), 'text': ex.get(text_field) or ex.get('text') or ex.get('text_original') or ''}
+
 
 @torch.inference_mode()
 def encode_to_latents(wav, model):
-    feats = model.encoder(wav); z = feats[-1]
-    z = z.permute(0,2,1).contiguous()
+    # This line is the fix: 'feats' is the tensor we need.
+    # Do not index into it with `[-1]`.
+    z = model.encoder(wav)
+
+    # Now, 'z' is a 3D tensor (Batch, Channels, Time), so permute will work.
+    z = z.permute(0, 2, 1).contiguous() # Resulting shape: (Batch, Time, Channels)
+    
+    # Squeeze the batch dimension and move to CPU
     return z.squeeze(0).cpu().numpy()
 
 def main():
